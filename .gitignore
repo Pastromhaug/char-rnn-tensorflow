@@ -1,0 +1,9 @@
+summary/*
+tensorflaz/*
+*.pyc
+*.e*
+*.o*
+*.json
+*.npy
+*.gz
+*.swp
