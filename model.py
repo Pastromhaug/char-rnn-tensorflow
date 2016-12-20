@@ -57,6 +57,8 @@ class Model():
                 args.grad_clip)
         optimizer = tf.train.AdamOptimizer(self.lr)
         self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+        self.cost_summary = tf.scalar_summary('loss_train', self.cost)
+        self.train_summary = tf.merge_summary([self.cost_summary])
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
         state = sess.run(self.cell.zero_state(1, tf.float32))
@@ -94,5 +96,3 @@ class Model():
             ret += pred
             char = pred
         return ret
-
-
