@@ -84,7 +84,7 @@ def train(args):
     with tf.Session() as sess:
         tf.initialize_all_variables().run()
         saver = tf.train.Saver(tf.all_variables())
-        summary_writer = tf.train.SummaryWriter('./tensorflaz/test' , sess.graph)
+        summary_writer = tf.train.SummaryWriter('./tensorflaz/test8' , sess.graph)
         batch_num = 0
         # restore model
         if args.init_from is not None:

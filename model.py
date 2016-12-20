@@ -40,15 +40,16 @@ class Model():
             prev = tf.matmul(prev, softmax_w) + softmax_b
             prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
             return tf.nn.embedding_lookup(embedding, prev_symbol)
-
         outputs, last_state = seq2seq.rnn_decoder(inputs, self.initial_state, cell, loop_function=loop if infer else None, scope='rnnlm')
         output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size])
         self.logits = tf.matmul(output, softmax_w) + softmax_b
         self.probs = tf.nn.softmax(self.logits)
+        targets = tf.reshape(self.targets, [-1])
         loss = seq2seq.sequence_loss_by_example([self.logits],
-                [tf.reshape(self.targets, [-1])],
+                [targets],
                 [tf.ones([args.batch_size * args.seq_length])],
                 args.vocab_size)
+
         self.cost = tf.reduce_sum(loss) / args.batch_size / args.seq_length
         self.final_state = last_state
         self.lr = tf.Variable(0.0, trainable=False)
@@ -57,8 +58,14 @@ class Model():
                 args.grad_clip)
         optimizer = tf.train.AdamOptimizer(self.lr)
         self.train_op = optimizer.apply_gradients(zip(grads, tvars))
-        self.cost_summary = tf.scalar_summary('loss_train', self.cost)
-        self.train_summary = tf.merge_summary([self.cost_summary])
+        cost_summary = tf.scalar_summary('loss_train', self.cost)
+
+        predictions = tf.argmax(self.probs, 1)
+        accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
+        accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
+
+        acc_summary = tf.scalar_summary('acc_train', accuracy)
+        self.train_summary = tf.merge_summary([cost_summary, acc_summary])
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
         state = sess.run(self.cell.zero_state(1, tf.float32))
