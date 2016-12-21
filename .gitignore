@@ -7,3 +7,6 @@ tensorflaz/*
 *.npy
 *.gz
 *.swp
+*.pkl*
+*.ckpt*
+*.meta*
