@@ -48,6 +48,8 @@ def main():
                         help="""Determines whether the state is reset to zero before every batch.
                             False -  means it it reset between each batch
                             True -  means it only gets reset at the start of each epoch""")
+    parser.add_argument('--tb_name', type=str, default='bleh',
+                        help="name of tensorboard file")
     args = parser.parse_args()
     train(args)
 
@@ -88,7 +90,7 @@ def train(args):
     with tf.Session() as sess:
         tf.initialize_all_variables().run()
         saver = tf.train.Saver(tf.all_variables())
-        summary_writer = tf.train.SummaryWriter('./tensorflaz/test9' , sess.graph)
+        summary_writer = tf.train.SummaryWriter(args.tb_name , sess.graph)
         batch_num = 0
         test_batch_num = 0
         # restore model

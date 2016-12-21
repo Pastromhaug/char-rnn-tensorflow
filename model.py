@@ -7,6 +7,10 @@ import numpy as np
 class Model():
     def __init__(self, args, infer=False):
         self.args = args
+        # print(vars(args))
+        arg_dict = vars(args)
+        for a in arg_dict:
+            print("%s = %s" % (a, str(arg_dict[a])))
         if infer:
             args.batch_size = 1
             args.seq_length = 1
