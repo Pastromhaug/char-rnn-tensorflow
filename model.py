@@ -26,7 +26,10 @@ class Model():
 
         self.input_data = tf.placeholder(tf.int32, [args.batch_size, args.seq_length])
         self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length])
+        self.state = tf.placeholder(tf.float32, [args.num_layers ,2, args.batch_size, args.rnn_size])
         self.initial_state = cell.zero_state(args.batch_size, tf.float32)
+        initial_state = tf.unpack(self.state, axis=0)
+        initial_state = [tf.unpack(g, axis=0) for g in initial_state]
 
         with tf.variable_scope('rnnlm'):
             softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
@@ -40,7 +43,7 @@ class Model():
             prev = tf.matmul(prev, softmax_w) + softmax_b
             prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
             return tf.nn.embedding_lookup(embedding, prev_symbol)
-        outputs, last_state = seq2seq.rnn_decoder(inputs, self.initial_state, cell, loop_function=loop if infer else None, scope='rnnlm')
+        outputs, last_state = seq2seq.rnn_decoder(inputs, initial_state, cell, loop_function=loop if infer else None, scope='rnnlm')
         output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size])
         self.logits = tf.matmul(output, softmax_w) + softmax_b
         self.probs = tf.nn.softmax(self.logits)
@@ -71,10 +74,6 @@ class Model():
         self.test_summary = tf.merge_summary([test_cost_summary, test_acc_summary])
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
-        print("num")
-        print(num)
-        print("chars")
-        print(chars)
         state = sess.run(self.cell.zero_state(1, tf.float32))
         for char in prime[:-1]:
             x = np.zeros((1, 1))

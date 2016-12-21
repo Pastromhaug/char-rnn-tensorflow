@@ -44,6 +44,10 @@ def main():
                                                   Note: this file contains absolute paths, be careful when moving files around;
                             'model.ckpt-*'      : file(s) with model definition (created by tf)
                         """)
+    parser.add_argument('--reuse_state', type=bool, default=False,
+                        help="""Determines whether the state is reset to zero before every batch.
+                            False -  means it it reset between each batch
+                            True -  means it only gets reset at the start of each epoch""")
     args = parser.parse_args()
     train(args)
 
@@ -98,16 +102,13 @@ def train(args):
 
                 start = time.time()
                 x, y = data_loader.next_batch()
-                feed = {model.input_data: x, model.targets: y}
+                if not args.reuse_state:
+                     state = sess.run(model.initial_state)
+                feed = {model.input_data: x, model.targets: y, model.state:state}
                 # for i, (c, h) in enumerate(model.initial_state):
-                for i, (c, h) in enumerate(model.initial_state):
-                    feed[c] = state[i].c
-                    feed[h] = state[i].h
                 if (b%10) == 0:
                     test_batch_num += 1
                     test_loss, test_acc, state, test_summary_ = sess.run([model.cost, model.accuracy, model.final_state, model.test_summary], feed)
-                    print("state")
-                    print(state)
                     summary_writer.add_summary(test_summary_, test_batch_num)
                     end = time.time()
                     print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))
