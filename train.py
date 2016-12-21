@@ -22,9 +22,9 @@ def main():
                        help='number of layers in the RNN')
     parser.add_argument('--model', type=str, default='lstm',
                        help='rnn, gru, or lstm')
-    parser.add_argument('--batch_size', type=int, default=10,
+    parser.add_argument('--batch_size', type=int, default=100,
                        help='minibatch size')
-    parser.add_argument('--seq_length', type=int, default=15,
+    parser.add_argument('--seq_length', type=int, default=50,
                        help='RNN sequence length')
     parser.add_argument('--num_epochs', type=int, default=50,
                        help='number of epochs')
@@ -84,8 +84,9 @@ def train(args):
     with tf.Session() as sess:
         tf.initialize_all_variables().run()
         saver = tf.train.Saver(tf.all_variables())
-        summary_writer = tf.train.SummaryWriter('./tensorflaz/test8' , sess.graph)
+        summary_writer = tf.train.SummaryWriter('./tensorflaz/test9' , sess.graph)
         batch_num = 0
+        test_batch_num = 0
         # restore model
         if args.init_from is not None:
             saver.restore(sess, ckpt.model_checkpoint_path)
@@ -94,25 +95,36 @@ def train(args):
             data_loader.reset_batch_pointer()
             state = sess.run(model.initial_state)
             for b in range(data_loader.num_batches):
-                batch_num += 1
+
                 start = time.time()
                 x, y = data_loader.next_batch()
                 feed = {model.input_data: x, model.targets: y}
+                # for i, (c, h) in enumerate(model.initial_state):
                 for i, (c, h) in enumerate(model.initial_state):
                     feed[c] = state[i].c
                     feed[h] = state[i].h
-                train_loss, state, train_summary_,  _ = sess.run([model.cost, model.final_state, model.train_summary, model.train_op], feed)
-                summary_writer.add_summary(train_summary_, batch_num)
-                end = time.time()
-                print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}" \
-                    .format(e * data_loader.num_batches + b,
-                            args.num_epochs * data_loader.num_batches,
-                            e, train_loss, end - start))
-                if (e * data_loader.num_batches + b) % args.save_every == 0\
-                    or (e==args.num_epochs-1 and b == data_loader.num_batches-1): # save for the last result
-                    checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
-                    saver.save(sess, checkpoint_path, global_step = e * data_loader.num_batches + b)
-                    print("model saved to {}".format(checkpoint_path))
+                if (b%10) == 0:
+                    test_batch_num += 1
+                    test_loss, test_acc, state, test_summary_ = sess.run([model.cost, model.accuracy, model.final_state, model.test_summary], feed)
+                    print("state")
+                    print(state)
+                    summary_writer.add_summary(test_summary_, test_batch_num)
+                    end = time.time()
+                    print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))
+                else:
+                    batch_num += 1
+                    train_loss, train_acc, state, train_summary_,  _ = sess.run([model.cost, model.accuracy, model.final_state, model.train_summary, model.train_op], feed)
+                    summary_writer.add_summary(train_summary_, batch_num)
+                    end = time.time()
+                    print("{}/{} (epoch {}), train_loss = {:.3f}, train_acc = {:.3f}, time/batch = {:.3f}" \
+                        .format(e * data_loader.num_batches + b,
+                                args.num_epochs * data_loader.num_batches,
+                                e, train_loss, train_acc,  end - start))
+                    if (e * data_loader.num_batches + b) % args.save_every == 0\
+                        or (e==args.num_epochs-1 and b == data_loader.num_batches-1): # save for the last result
+                        checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
+                        saver.save(sess, checkpoint_path, global_step = e * data_loader.num_batches + b)
+                        print("model saved to {}".format(checkpoint_path))
 
 if __name__ == '__main__':
     main()

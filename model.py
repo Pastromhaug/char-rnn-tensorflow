@@ -58,16 +58,23 @@ class Model():
                 args.grad_clip)
         optimizer = tf.train.AdamOptimizer(self.lr)
         self.train_op = optimizer.apply_gradients(zip(grads, tvars))
-        cost_summary = tf.scalar_summary('loss_train', self.cost)
+        cost_summary = tf.scalar_summary('train_loss', self.cost)
+        test_cost_summary = tf.scalar_summary('test_loss', self.cost)
 
         predictions = tf.argmax(self.probs, 1)
         accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
-        accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
+        self.accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
 
-        acc_summary = tf.scalar_summary('acc_train', accuracy)
+        acc_summary = tf.scalar_summary('train_acc', self.accuracy)
+        test_acc_summary = tf.scalar_summary('test_acc', self.accuracy)
         self.train_summary = tf.merge_summary([cost_summary, acc_summary])
+        self.test_summary = tf.merge_summary([test_cost_summary, test_acc_summary])
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
+        print("num")
+        print(num)
+        print("chars")
+        print(chars)
         state = sess.run(self.cell.zero_state(1, tf.float32))
         for char in prime[:-1]:
             x = np.zeros((1, 1))
