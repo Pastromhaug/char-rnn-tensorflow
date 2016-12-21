@@ -82,7 +82,7 @@ class Model():
         for char in prime[:-1]:
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
-            feed = {self.input_data: x, self.initial_state:state}
+            feed = {self.input_data: x, self.state:state}
             [state] = sess.run([self.final_state], feed)
 
         def weighted_pick(weights):
@@ -95,7 +95,7 @@ class Model():
         for n in range(num):
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
-            feed = {self.input_data: x, self.initial_state:state}
+            feed = {self.input_data: x, self.state:state}
             [probs, state] = sess.run([self.probs, self.final_state], feed)
             p = probs[0]
 
