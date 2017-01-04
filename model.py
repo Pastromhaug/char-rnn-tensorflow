@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import seq2seq
+from layers.metaRNNCell import MetaRNNCell
 
 import numpy as np
 
@@ -17,6 +18,8 @@ class Model():
             cell_fn = rnn_cell.GRUCell
         elif args.model == 'lstm':
             cell_fn = rnn_cell.BasicLSTMCell
+        elif args.model =='meta':
+            cell_fn = MetaRNNCell
         else:
             raise Exception("model type not supported: {}".format(args.model))
 
