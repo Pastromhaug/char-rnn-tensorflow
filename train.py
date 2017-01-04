@@ -84,7 +84,7 @@ def train(args):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./tensorflaz/test9' , sess.graph)
+        summary_writer = tf.summary.FileWriter('./tensorflaz/test10' , sess.graph)
         batch_num = 0
         test_batch_num = 0
         # restore model
@@ -93,25 +93,25 @@ def train(args):
         for e in range(args.num_epochs):
             sess.run(tf.assign(model.lr, args.learning_rate * (args.decay_rate ** e)))
             data_loader.reset_batch_pointer()
-            state = sess.run(model.initial_state)
+            # state = sess.run(model.initial_state)
             for b in range(data_loader.num_batches):
 
                 start = time.time()
                 x, y = data_loader.next_batch()
                 feed = {model.input_data: x, model.targets: y}
                 # for i, (c, h) in enumerate(model.initial_state):
-                for i, (c, h) in enumerate(model.initial_state):
-                    feed[c] = state[i].c
-                    feed[h] = state[i].h
+                # for i, (c, h) in enumerate(model.initial_state):
+                #     feed[c] = state[i].c
+                #     feed[h] = state[i].h
                 if (b%10) == 0:
                     test_batch_num += 1
-                    test_loss, test_acc, state, test_summary_ = sess.run([model.cost, model.accuracy, model.final_state, model.test_summary], feed)
+                    test_loss, test_acc, test_summary_ = sess.run([model.cost, model.accuracy, model.test_summary], feed)
                     summary_writer.add_summary(test_summary_, test_batch_num)
                     end = time.time()
                     print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))
                 else:
                     batch_num += 1
-                    train_loss, train_acc, state, train_summary_,  _ = sess.run([model.cost, model.accuracy, model.final_state, model.train_summary, model.train_op], feed)
+                    train_loss, train_acc, train_summary_,  _ = sess.run([model.cost, model.accuracy, model.train_summary, model.train_op], feed)
                     summary_writer.add_summary(train_summary_, batch_num)
                     end = time.time()
                     print("{}/{} (epoch {}), train_loss = {:.3f}, train_acc = {:.3f}, time/batch = {:.3f}" \
