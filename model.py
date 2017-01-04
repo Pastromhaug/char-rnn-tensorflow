@@ -20,7 +20,7 @@ class Model():
         else:
             raise Exception("model type not supported: {}".format(args.model))
 
-        cell = cell_fn(args.rnn_size, state_is_tuple=True)
+        cell = cell_fn(args.rnn_size)
 
         self.cell = cell = rnn_cell.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
 
@@ -54,21 +54,21 @@ class Model():
         self.final_state = last_state
         self.lr = tf.Variable(0.0, trainable=False)
         tvars = tf.trainable_variables()
-        grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
-                args.grad_clip)
+        grads = tf.gradients(self.cost, tvars)
+        grads, _ = tf.clip_by_global_norm(grads, args.grad_clip)
         optimizer = tf.train.AdamOptimizer(self.lr)
         self.train_op = optimizer.apply_gradients(zip(grads, tvars))
-        cost_summary = tf.scalar_summary('train_loss', self.cost)
-        test_cost_summary = tf.scalar_summary('test_loss', self.cost)
+        cost_summary = tf.summary.scalar('train_loss', self.cost)
+        test_cost_summary = tf.summary.scalar('test_loss', self.cost)
 
         predictions = tf.argmax(self.probs, 1)
         accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
         self.accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
 
-        acc_summary = tf.scalar_summary('train_acc', self.accuracy)
-        test_acc_summary = tf.scalar_summary('test_acc', self.accuracy)
-        self.train_summary = tf.merge_summary([cost_summary, acc_summary])
-        self.test_summary = tf.merge_summary([test_cost_summary, test_acc_summary])
+        acc_summary = tf.summary.scalar('train_acc', self.accuracy)
+        test_acc_summary = tf.summary.scalar('test_acc', self.accuracy)
+        self.train_summary = tf.summary.merge([cost_summary, acc_summary])
+        self.test_summary = tf.summary.merge([test_cost_summary, test_acc_summary])
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
         print("num")

@@ -82,9 +82,9 @@ def train(args):
     model = Model(args)
 
     with tf.Session() as sess:
-        tf.initialize_all_variables().run()
-        saver = tf.train.Saver(tf.all_variables())
-        summary_writer = tf.train.SummaryWriter('./tensorflaz/test9' , sess.graph)
+        tf.global_variables_initializer().run()
+        saver = tf.train.Saver(tf.global_variables())
+        summary_writer = tf.summary.FileWriter('./tensorflaz/test9' , sess.graph)
         batch_num = 0
         test_batch_num = 0
         # restore model
@@ -106,8 +106,6 @@ def train(args):
                 if (b%10) == 0:
                     test_batch_num += 1
                     test_loss, test_acc, state, test_summary_ = sess.run([model.cost, model.accuracy, model.final_state, model.test_summary], feed)
-                    print("state")
-                    print(state)
                     summary_writer.add_summary(test_summary_, test_batch_num)
                     end = time.time()
                     print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))
