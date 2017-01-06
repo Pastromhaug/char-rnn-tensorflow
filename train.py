@@ -16,11 +16,13 @@ def main():
                        help='data directory containing input.txt')
     parser.add_argument('--save_dir', type=str, default='save',
                        help='directory to store checkpointed models')
-    parser.add_argument('--rnn_size', type=int, default=128,
+    parser.add_argument('--rnn_size', type=int, default=100,
                        help='size of RNN hidden state')
+    parser.add_argument('--ctrl_size', type=int, default=10,
+                      help='num of gate controls for meta RNN')
     parser.add_argument('--num_layers', type=int, default=2,
                        help='number of layers in the RNN')
-    parser.add_argument('--model', type=str, default='lstm',
+    parser.add_argument('--model', type=str, default='meta',
                        help='rnn, gru, lstm, or meta')
     parser.add_argument('--batch_size', type=int, default=100,
                        help='minibatch size')
@@ -84,7 +86,8 @@ def train(args):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./tensorflaz/test11' , sess.graph)
+        summary_writer = tf.summary.FileWriter('./tensorflaz/meta3' , sess.graph)
+        # summary_writer = tf.summary.FileWriter('./rnn_tensorflaz/rnn7' , sess.graph)
         batch_num = 0
         test_batch_num = 0
         # restore model
