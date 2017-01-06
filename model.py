@@ -2,7 +2,9 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import seq2seq
-from layers.metaRNNCell import MetaRNNCell
+# from layers.metaRNNCell import MetaRNNCell
+from layers.passRNNCell import PassRNNCell
+from layers.hwyRNNCell import HwyRNNCell
 
 import numpy as np
 
@@ -21,6 +23,10 @@ class Model():
             cell_fn = rnn_cell.BasicLSTMCell
         elif args.model =='meta':
             cell_fn = MetaRNNCell
+        elif args.model =='pass':
+            cell_fn = PassRNNCell
+        elif args.model == 'hwy':
+            cell_fn = HwyRNNCell
         else:
             raise Exception("model type not supported: {}".format(args.model))
 
