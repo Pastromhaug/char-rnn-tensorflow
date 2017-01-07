@@ -89,7 +89,7 @@ def train(args):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./sparse200_tensorflaz/' + args.tb_dir , sess.graph)
+        summary_writer = tf.summary.FileWriter('./inter_tensorflaz/' + args.tb_dir , sess.graph)
         # summary_writer = tf.summary.FileWriter('./rnn_tensorflaz/rnn7' , sess.graph)
         batch_num = 0
         test_batch_num = 0

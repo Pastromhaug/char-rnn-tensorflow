@@ -6,6 +6,7 @@ from tensorflow.python.ops import seq2seq
 from layers.passRNNCell import PassRNNCell
 from layers.hwyRNNCell import HwyRNNCell
 from layers.sparseRNNCell import SparseRNNCell
+from layers.interRNNCell import InterRNNCell
 
 import numpy as np
 
@@ -42,6 +43,8 @@ class Model():
             cell_fn = HwyRNNCell
         elif args.model == 'sparse':
             cell_fn = SparseRNNCell
+        elif args.model == 'inter':
+            cell_fn = InterRNNCell
         else:
             raise Exception("model type not supported: {}".format(args.model))
 
@@ -50,6 +53,8 @@ class Model():
         elif args.model == 'hwy':
             cell = cell_fn(args.rnn_size, drop=self.drop)
         elif args.model == 'sparse':
+            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
+        elif args.model == 'inter':
             cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
         else:
             cell = cell_fn(args.rnn_size)
