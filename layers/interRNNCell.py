@@ -8,13 +8,14 @@ from tensorflow.python.ops import init_ops
 class InterRNNCell(tf.nn.rnn_cell.RNNCell):
   """The most basic RNN cell."""
 
-  def __init__(self, num_units, mask, sparsity, input_size=None, activation=tf.tanh):
+  def __init__(self, num_units, mask, sparsity, drop=0, input_size=None, activation=tf.tanh):
     if input_size is not None:
       logging.warn("%s: The input_size parameter is deprecated.", self)
     self._num_units = num_units
     self._activation = activation
     self._mask = mask
     self._sparsity = sparsity
+    self._drop = drop
 
   @property
   def state_size(self):
@@ -27,11 +28,12 @@ class InterRNNCell(tf.nn.rnn_cell.RNNCell):
   def __call__(self, inputs, state, scope=None):
     """Most basic RNN: output = new_state = activation(W * input + U * state + B)."""
     with tf.variable_scope(scope or type(self).__name__):  # "BasicRNNCell"
-      output = self._activation(_linear([inputs, state], self._num_units, True, self._mask, self._sparsity))
+      output = self._activation(_linear([inputs, state], self._num_units, True,
+                                    self._mask, self._sparsity, drop=self._drop))
     return output, output
 
 
-def _linear(args, output_size, bias, mask, sparsity, bias_start=0.0, scope=None):
+def _linear(args, output_size, bias, mask, sparsity, drop=0, bias_start=0.0, scope=None):
   """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
 
   Args:
@@ -71,7 +73,7 @@ def _linear(args, output_size, bias, mask, sparsity, bias_start=0.0, scope=None)
     # mask = tf.Print(mask, [tf.reduce_sum(mask)], message="mask_sum")
     gate = tf.get_variable("Gate", [total_arg_size, 1], dtype=tf.float32)
     matrix = tf.get_variable("Matrix", [total_arg_size, output_size], dtype=dtype)
-    # matrix = matrix/(1-sparsity)
+    matrix = matrix/(1-sparsity)
     matrixA = matrix * mask
     matrixB = matrix * (1-mask)
     resA = math_ops.matmul(array_ops.concat(1, args), matrixA)
@@ -79,6 +81,21 @@ def _linear(args, output_size, bias, mask, sparsity, bias_start=0.0, scope=None)
     g = math_ops.matmul(array_ops.concat(1, args), gate)
     # g = tf.Print(g, [g], message="g")
     g = tf.sigmoid(g)
+    cond = tf.equal(drop, 0)
+    def f1():
+        ret = g
+        # ret = tf.Print(ret, [ret], message="f1")
+        return ret
+    def f2():
+        ret =  tf.round(g)
+        # ret = tf.Print(ret, [tf.reduce_sum(ret)], message="num_activations")
+        # ret = tf.Print(ret, [ret], message="f2")
+        return ret
+    g = tf.cond(cond, f1, f2)
+    # print("p")
+    # print(g)
+    # print(resA)
+    # print(resB)
     res = resA*g + (1-g)*resB
     if not bias:
       return res

@@ -111,7 +111,7 @@ def train(args):
                 start = time.time()
                 x, y = data_loader.next_batch()
                 drop = 0
-                if e >= 0:
+                if e >= 1:
                     drop=1
                 feed = {model.input_data: x, model.targets: y, model.drop:drop, model.mask:mask}
                 # for i, (c, h) in enumerate(model.initial_state):

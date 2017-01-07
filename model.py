@@ -55,7 +55,7 @@ class Model():
         elif args.model == 'sparse':
             cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
         elif args.model == 'inter':
-            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
+            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity, drop=self.drop)
         else:
             cell = cell_fn(args.rnn_size)
 
