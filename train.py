@@ -46,6 +46,9 @@ def main():
                                                   Note: this file contains absolute paths, be careful when moving files around;
                             'model.ckpt-*'      : file(s) with model definition (created by tf)
                         """)
+    parser.add_argument('--sparsity', type=float, default=0.5,
+                        help="Determines percent of matrix in sparseRNNCell that is 'masked' to 0")
+    parser.add_argument('--tb_dir', type=str, default='bleh')
     args = parser.parse_args()
     train(args)
 
@@ -86,11 +89,17 @@ def train(args):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./tensorflaz/lstm' , sess.graph)
+        summary_writer = tf.summary.FileWriter('./sparse200_tensorflaz/' + args.tb_dir , sess.graph)
         # summary_writer = tf.summary.FileWriter('./rnn_tensorflaz/rnn7' , sess.graph)
         batch_num = 0
         test_batch_num = 0
         # restore model
+
+
+        mask = np.random.uniform(0,1,[2*args.rnn_size, args.rnn_size])
+        print(np.sum(mask))
+        mask = np.ceil(mask - args.sparsity)
+        print(np.sum(mask))
         if args.init_from is not None:
             saver.restore(sess, ckpt.model_checkpoint_path)
         for e in range(args.num_epochs):
@@ -101,7 +110,10 @@ def train(args):
 
                 start = time.time()
                 x, y = data_loader.next_batch()
-                feed = {model.input_data: x, model.targets: y}
+                drop = 0
+                if e >= 0:
+                    drop=1
+                feed = {model.input_data: x, model.targets: y, model.drop:drop, model.mask:mask}
                 # for i, (c, h) in enumerate(model.initial_state):
                 # for i, (c, h) in enumerate(model.initial_state):
                 #     feed[c] = state[i].c

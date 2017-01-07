@@ -5,11 +5,24 @@ from tensorflow.python.ops import seq2seq
 # from layers.metaRNNCell import MetaRNNCell
 from layers.passRNNCell import PassRNNCell
 from layers.hwyRNNCell import HwyRNNCell
+from layers.sparseRNNCell import SparseRNNCell
 
 import numpy as np
 
 class Model():
     def __init__(self, args, infer=False):
+
+        with tf.variable_scope('PlaceHolders'):
+            self.input_data = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="input_data")
+            self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="targets")
+            self.drop = tf.placeholder(tf.int32, name="drop")
+            self.mask = tf.placeholder(tf.float32, [2*args.rnn_size, args.rnn_size], name="mask")
+            targets = tf.reshape(self.targets, [-1])
+            embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
+            inputs = tf.split(1, args.seq_length, tf.nn.embedding_lookup(embedding, self.input_data))
+            inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
+
+
         self.args = args
         if infer:
             args.batch_size = 1
@@ -27,23 +40,22 @@ class Model():
             cell_fn = PassRNNCell
         elif args.model == 'hwy':
             cell_fn = HwyRNNCell
+        elif args.model == 'sparse':
+            cell_fn = SparseRNNCell
         else:
             raise Exception("model type not supported: {}".format(args.model))
 
         if args.model == 'meta':
             cell = cell_fn(args.rnn_size, args.ctrl_size)
+        elif args.model == 'hwy':
+            cell = cell_fn(args.rnn_size, drop=self.drop)
+        elif args.model == 'sparse':
+            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
         else:
             cell = cell_fn(args.rnn_size)
 
         self.cell = cell = rnn_cell.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
 
-        with tf.variable_scope('PlaceHolders'):
-            self.input_data = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="input_data")
-            self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="targets")
-            targets = tf.reshape(self.targets, [-1])
-            embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
-            inputs = tf.split(1, args.seq_length, tf.nn.embedding_lookup(embedding, self.input_data))
-            inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
 
         with tf.variable_scope("InitialState"):
             self.initial_state = cell.zero_state(args.batch_size, tf.float32)
