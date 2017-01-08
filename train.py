@@ -91,25 +91,31 @@ def train(args):
 
     model = Model(args)
 
-    if args.model == 'sparse':
-        mask = np.random.uniform(0,1,[2*args.rnn_size, args.rnn_size])
-        print(np.sum(mask))
-        mask = np.ceil(mask - args.sparsity)
-        print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
-    elif args.model == 'block':
-        dim1 = args.rnn_size / args.block_size
-        mask1 = np.random.uniform(0,1,[2*dim1, dim1])
-        mask1 = np.ceil(mask1 - args.sparsity)
-        block = np.ones([args.block_size, args.block_size])
-        mask = []
-        for i in range(2*dim1):
-            row = []
-            for j in range(dim1):
-                row.append(block*mask1[i,j])
-            mask.append(np.concatenate(row, axis=1))
-        mask = np.concatenate(mask, axis=0)
-        print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
-        # print(mask)
+    if args.model in ['sparse', 'block']:
+        if args.model == 'sparse':
+            mask = np.random.uniform(0,1,[2*args.rnn_size, args.rnn_size])
+            # print(np.sum(mask))
+            mask = np.ceil(mask - args.sparsity)
+            # print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
+            sparsity = np.sum(mask)/(2*args.rnn_size*args.rnn_size)
+            mask = mask/(1-sparsity)
+        elif args.model == 'block':
+            dim1 = args.rnn_size / args.block_size
+            mask1 = np.random.uniform(0,1,[2*dim1, dim1])
+            mask1 = np.ceil(mask1 - args.sparsity)
+            block = np.ones([args.block_size, args.block_size])
+            mask = []
+            for i in range(dim1):
+                col = []
+                for j in range(2*dim1):
+                    col.append(block*mask1[j,i])
+                sparsity = 1-np.sum(col)/(2*args.rnn_size * args.block_size)
+                if sparsity < 1:
+                    col = col / (1 - sparsity)
+                mask.append(np.concatenate(col, axis=0))
+            mask = np.concatenate(mask, axis=1)
+            # print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
+        print(mask)
 
 
 

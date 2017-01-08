@@ -70,7 +70,7 @@ def _linear(args, output_size, bias, mask, sparsity, bias_start=0.0, scope=None)
   with tf.variable_scope(scope or "Linear"):
     # mask = tf.Print(mask, [tf.reduce_sum(mask)], message="mask_sum")
     matrix = tf.get_variable("Matrix", [total_arg_size, output_size], dtype=dtype)
-    matrix = matrix/(1-sparsity) * mask
+    matrix = matrix * mask
     if len(args) == 1:
       res = math_ops.matmul(args[0], matrix)
     else:
