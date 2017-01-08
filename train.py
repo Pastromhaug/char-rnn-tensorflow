@@ -7,7 +7,7 @@ import time
 import os
 from six.moves import cPickle
 
-from utils import TextLoader
+from utils.dataUtils import TextLoader
 from model import Model
 
 def main():
@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--num_layers', type=int, default=2,
                        help='number of layers in the RNN')
     parser.add_argument('--model', type=str, default='meta',
-                       help='rnn, gru, lstm, or meta')
+                       help='rnn, gru, lstm, or meta, inter, dizzy')
     parser.add_argument('--batch_size', type=int, default=100,
                        help='minibatch size')
     parser.add_argument('--seq_length', type=int, default=50,
@@ -49,6 +49,8 @@ def main():
     parser.add_argument('--sparsity', type=float, default=0.5,
                         help="Determines percent of matrix in sparseRNNCell that is 'masked' to 0")
     parser.add_argument('--tb_dir', type=str, default='bleh')
+    parser.add_argument('--num_rots', type=int, default=5,
+                        help="number of packed rotations for DizzyRNNCell")
     args = parser.parse_args()
     train(args)
 
@@ -89,7 +91,7 @@ def train(args):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./inter_tensorflaz/' + args.tb_dir , sess.graph)
+        summary_writer = tf.summary.FileWriter('./dizzy_tensorflaz/' + args.tb_dir , sess.graph)
         # summary_writer = tf.summary.FileWriter('./rnn_tensorflaz/rnn7' , sess.graph)
         batch_num = 0
         test_batch_num = 0

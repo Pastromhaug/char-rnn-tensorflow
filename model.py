@@ -3,10 +3,7 @@ import numpy as np
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import seq2seq
 # from layers.metaRNNCell import MetaRNNCell
-from layers.passRNNCell import PassRNNCell
-from layers.hwyRNNCell import HwyRNNCell
-from layers.sparseRNNCell import SparseRNNCell
-from layers.interRNNCell import InterRNNCell
+from utils.buildRNNCell import buildRNNCell
 
 import numpy as np
 
@@ -29,41 +26,11 @@ class Model():
             args.batch_size = 1
             args.seq_length = 1
 
-        if args.model == 'rnn':
-            cell_fn = rnn_cell.BasicRNNCell
-        elif args.model == 'gru':
-            cell_fn = rnn_cell.GRUCell
-        elif args.model == 'lstm':
-            cell_fn = rnn_cell.BasicLSTMCell
-        elif args.model =='meta':
-            cell_fn = MetaRNNCell
-        elif args.model =='pass':
-            cell_fn = PassRNNCell
-        elif args.model == 'hwy':
-            cell_fn = HwyRNNCell
-        elif args.model == 'sparse':
-            cell_fn = SparseRNNCell
-        elif args.model == 'inter':
-            cell_fn = InterRNNCell
-        else:
-            raise Exception("model type not supported: {}".format(args.model))
-
-        if args.model == 'meta':
-            cell = cell_fn(args.rnn_size, args.ctrl_size)
-        elif args.model == 'hwy':
-            cell = cell_fn(args.rnn_size, drop=self.drop)
-        elif args.model == 'sparse':
-            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity)
-        elif args.model == 'inter':
-            cell = cell_fn(args.rnn_size, mask=self.mask, sparsity=args.sparsity, drop=self.drop)
-        else:
-            cell = cell_fn(args.rnn_size)
-
-        self.cell = cell = rnn_cell.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
+        self.cell = buildRNNCell(args, self.drop, self.mask)
 
 
         with tf.variable_scope("InitialState"):
-            self.initial_state = cell.zero_state(args.batch_size, tf.float32)
+            self.initial_state = self.cell.zero_state(args.batch_size, tf.float32)
 
         with tf.variable_scope('Seq2Seq'):
             softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
@@ -72,7 +39,7 @@ class Model():
                 prev = tf.matmul(prev, softmax_w) + softmax_b
                 prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
                 return tf.nn.embedding_lookup(embedding, prev_symbol)
-            outputs, last_state = seq2seq.rnn_decoder(inputs, self.initial_state, cell, loop_function=loop if infer else None, scope='CallingSeq2Seq')
+            outputs, last_state = seq2seq.rnn_decoder(inputs, self.initial_state, self.cell, loop_function=loop if infer else None, scope='CallingSeq2Seq')
 
         with tf.variable_scope('ProcessingRNNOutputs'):
             output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size], name="ReshapeOutputs")
