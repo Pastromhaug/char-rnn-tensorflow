@@ -19,11 +19,11 @@ def buildRNNCell(args, drop, mask):
         cell_fn = PassRNNCell
     elif args.model == 'hwy':
         cell_fn = HwyRNNCell
-    elif args.model == 'sparse':
+    elif args.model in ['sparse', 'block']:
         cell_fn = SparseRNNCell
     elif args.model == 'inter':
         cell_fn = InterRNNCell
-    elif args.model == 'dizzy':
+    elif args.model in 'dizzy':
         cell_fn = DizzyRNNCell
     else:
         raise Exception("model type not supported: {}".format(args.model))
@@ -32,7 +32,7 @@ def buildRNNCell(args, drop, mask):
         cell = cell_fn(args.rnn_size, args.ctrl_size)
     elif args.model == 'hwy':
         cell = cell_fn(args.rnn_size, drop=drop)
-    elif args.model == 'sparse':
+    elif args.model in ['sparse', 'block']:
         cell = cell_fn(args.rnn_size, mask=mask, sparsity=args.sparsity)
     elif args.model == 'inter':
         cell = cell_fn(args.rnn_size, mask=mask, sparsity=args.sparsity, drop=drop)

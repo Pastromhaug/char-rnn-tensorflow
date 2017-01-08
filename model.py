@@ -68,8 +68,8 @@ class Model():
 
             with tf.variable_scope("CalculateAccuracy"):
                 predictions = tf.argmax(self.probs, 1)
-                accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
-                self.accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
+                self.elm_accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
+                self.accuracy = tf.reduce_mean(tf.cast(self.elm_accuracy, tf.float32))
 
         cost_summary = tf.summary.scalar('train_loss', self.cost)
         test_cost_summary = tf.summary.scalar('test_loss', self.cost)

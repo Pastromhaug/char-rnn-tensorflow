@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--num_layers', type=int, default=2,
                        help='number of layers in the RNN')
     parser.add_argument('--model', type=str, default='meta',
-                       help='rnn, gru, lstm, or meta, inter, dizzy')
+                       help='rnn, gru, lstm, or meta, inter, dizzy, block')
     parser.add_argument('--batch_size', type=int, default=100,
                        help='minibatch size')
     parser.add_argument('--seq_length', type=int, default=50,
@@ -48,9 +48,12 @@ def main():
                         """)
     parser.add_argument('--sparsity', type=float, default=0.5,
                         help="Determines percent of matrix in sparseRNNCell that is 'masked' to 0")
+    parser.add_argument('--block_size', type=int, default=10,
+                        help="dimensionality of each block in sparse block matrices for 'block' layer type")
     parser.add_argument('--tb_dir', type=str, default='bleh')
     parser.add_argument('--num_rots', type=int, default=5,
                         help="number of packed rotations for DizzyRNNCell")
+
     args = parser.parse_args()
     train(args)
 
@@ -88,6 +91,28 @@ def train(args):
 
     model = Model(args)
 
+    if args.model == 'sparse':
+        mask = np.random.uniform(0,1,[2*args.rnn_size, args.rnn_size])
+        print(np.sum(mask))
+        mask = np.ceil(mask - args.sparsity)
+        print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
+    elif args.model == 'block':
+        dim1 = args.rnn_size / args.block_size
+        mask1 = np.random.uniform(0,1,[2*dim1, dim1])
+        mask1 = np.ceil(mask1 - args.sparsity)
+        block = np.ones([args.block_size, args.block_size])
+        mask = []
+        for i in range(2*dim1):
+            row = []
+            for j in range(dim1):
+                row.append(block*mask1[i,j])
+            mask.append(np.concatenate(row, axis=1))
+        mask = np.concatenate(mask, axis=0)
+        print("mask ratio: ", np.sum(mask)/(2*args.rnn_size*args.rnn_size))
+        # print(mask)
+
+
+
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
@@ -98,10 +123,7 @@ def train(args):
         # restore model
 
 
-        mask = np.random.uniform(0,1,[2*args.rnn_size, args.rnn_size])
-        print(np.sum(mask))
-        mask = np.ceil(mask - args.sparsity)
-        print(np.sum(mask))
+
         if args.init_from is not None:
             saver.restore(sess, ckpt.model_checkpoint_path)
         for e in range(args.num_epochs):
@@ -122,7 +144,9 @@ def train(args):
                 #     feed[h] = state[i].h
                 if (b%10) == 0:
                     test_batch_num += 1
-                    test_loss, test_acc, test_summary_ = sess.run([model.cost, model.accuracy, model.test_summary], feed)
+                    test_loss, test_acc, test_summary_, probs_, elm_accuracy_ = sess.run([model.cost, model.accuracy, model.test_summary, model.probs, model.elm_accuracy], feed)
+                    maxs = [np.max(i) for i in probs_]
+                    # print(zip(maxs, elm_accuracy_[0]))
                     summary_writer.add_summary(test_summary_, test_batch_num)
                     end = time.time()
                     print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))
