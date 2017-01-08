@@ -53,6 +53,8 @@ def main():
     parser.add_argument('--tb_dir', type=str, default='bleh')
     parser.add_argument('--num_rots', type=int, default=5,
                         help="number of packed rotations for DizzyRNNCell")
+    parser.add_argument('--step', type=int, default=4,
+                        help="only for outrageousRNNCell. number of epochs of training until allowing for next level of transformations")
 
     args = parser.parse_args()
     train(args)
@@ -118,11 +120,10 @@ def train(args):
         print(mask)
 
 
-
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
-        summary_writer = tf.summary.FileWriter('./dizzy_tensorflaz/' + args.tb_dir , sess.graph)
+        summary_writer = tf.summary.FileWriter('./out_tensorflaz/' + args.tb_dir , sess.graph)
         # summary_writer = tf.summary.FileWriter('./rnn_tensorflaz/rnn7' , sess.graph)
         batch_num = 0
         test_batch_num = 0
@@ -143,11 +144,9 @@ def train(args):
                 drop = 0
                 if e >= 1:
                     drop=1
-                feed = {model.input_data: x, model.targets: y, model.drop:drop, model.mask:mask}
-                # for i, (c, h) in enumerate(model.initial_state):
-                # for i, (c, h) in enumerate(model.initial_state):
-                #     feed[c] = state[i].c
-                #     feed[h] = state[i].h
+                feed = {model.input_data: x, model.targets: y, model.drop:drop,
+                         model.epoch:e, model.step:args.step}
+
                 if (b%10) == 0:
                     test_batch_num += 1
                     test_loss, test_acc, test_summary_, probs_, elm_accuracy_ = sess.run([model.cost, model.accuracy, model.test_summary, model.probs, model.elm_accuracy], feed)

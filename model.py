@@ -3,58 +3,53 @@ import numpy as np
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import seq2seq
 # from layers.metaRNNCell import MetaRNNCell
-from utils.buildRNNCell import buildRNNCell
+from layers.outrageousRNNCell import OutrageousRNNCell
 
 import numpy as np
 
 class Model():
     def __init__(self, args, infer=False):
-
+        self.args = args
         with tf.variable_scope('PlaceHolders'):
             self.input_data = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="input_data")
             self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="targets")
             self.drop = tf.placeholder(tf.int32, name="drop")
             self.mask = tf.placeholder(tf.float32, [2*args.rnn_size, args.rnn_size], name="mask")
+            self.step = tf.placeholder(tf.int32, name="outrageous_step")
+            self.epoch = tf.placeholder(tf.int32, name="epoch_num")
             targets = tf.reshape(self.targets, [-1])
             embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
             inputs = tf.split(1, args.seq_length, tf.nn.embedding_lookup(embedding, self.input_data))
             inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
 
-
-        self.args = args
-        if infer:
-            args.batch_size = 1
-            args.seq_length = 1
-
-        self.cell = buildRNNCell(args, self.drop, self.mask)
-
+        if args.model == 'out':
+            self.cell = OutrageousRNNCell(args.rnn_size, args.vocab_size, self.targets, self.step, self.epoch)
 
         with tf.variable_scope("InitialState"):
             self.initial_state = self.cell.zero_state(args.batch_size, tf.float32)
 
         with tf.variable_scope('Seq2Seq'):
-            softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
-            softmax_b = tf.get_variable("softmax_b", [args.vocab_size])
-            def loop(prev, _):
-                prev = tf.matmul(prev, softmax_w) + softmax_b
-                prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
-                return tf.nn.embedding_lookup(embedding, prev_symbol)
-            outputs, last_state = seq2seq.rnn_decoder(inputs, self.initial_state, self.cell, loop_function=loop if infer else None, scope='CallingSeq2Seq')
+            outputs, _ = tf.nn.rnn(self.cell, inputs, self.initial_state, scope='CallingSeq2Seq')
+            logits, probs = zip(*outputs)
+            # print("len logits", len(logits))
+            # print('logits[0]')
+            print(logits[0])
+            self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="OutrageousReshapeOutputs")
+            # print("logits")
+            # print(self.logits)
+            self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="OutrageousReshapeOutputs")
+            # print("probs")
+            # print(self.probs)
 
         with tf.variable_scope('ProcessingRNNOutputs'):
-            output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size], name="ReshapeOutputs")
-            with tf.variable_scope("ExctactProbabilities"):
-                self.logits = tf.matmul(output, softmax_w) + softmax_b
-                self.probs = tf.nn.softmax(self.logits)
-
+            # print("targets")
+            # print(targets)
             with tf.variable_scope("CalculateLoss"):
                 loss = seq2seq.sequence_loss_by_example([self.logits],
                         [targets],
                         [tf.ones([args.batch_size * args.seq_length])],
                         args.vocab_size)
                 self.cost = tf.reduce_sum(loss) / args.batch_size / args.seq_length
-
-            self.final_state = last_state
 
             with tf.variable_scope("ApplyingGradients"):
                 self.lr = tf.Variable(0.0, trainable=False)
@@ -67,8 +62,8 @@ class Model():
                 self.train_op = optimizer.apply_gradients(zip(grads, tvars))
 
             with tf.variable_scope("CalculateAccuracy"):
-                predictions = tf.argmax(self.probs, 1)
-                self.elm_accuracy = [tf.equal(tf.cast(predictions, tf.int32), targets)]
+                self.predictions = tf.argmax(self.probs, 1)
+                self.elm_accuracy = [tf.equal(tf.cast(self.predictions, tf.int32), targets)]
                 self.accuracy = tf.reduce_mean(tf.cast(self.elm_accuracy, tf.float32))
 
         cost_summary = tf.summary.scalar('train_loss', self.cost)
