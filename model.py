@@ -29,17 +29,29 @@ class Model():
             self.initial_state = self.cell.zero_state(args.batch_size, tf.float32)
 
         with tf.variable_scope('Seq2Seq'):
-            outputs, _ = tf.nn.rnn(self.cell, inputs, self.initial_state, scope='CallingSeq2Seq')
-            logits, probs = zip(*outputs)
+            softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
+            softmax_b = tf.get_variable("softmax_b", [args.vocab_size])
+        with tf.variable_scope('Seq2Seq'):
+            #-------
+            outputs, _ = seq2seq.rnn_decoder( inputs, self.initial_state,self.cell, scope='CallingSeq2Seq')
+            # logits, probs = zip(*outputs)
+
             # print("len logits", len(logits))
             # print('logits[0]')
-            print(logits[0])
-            self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="OutrageousReshapeOutputs")
+            # print(logits[0])
+            # self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="ReshapeLogits")
             # print("logits")
             # print(self.logits)
-            self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="OutrageousReshapeOutputs")
+            # self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="ReshapeProbs")
             # print("probs")
             # print(self.probs)
+            #---------
+            output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size], name="ReshapeOutputs")
+            print("output")
+            with tf.variable_scope("ExctactProbabilities"):
+                self.logits = tf.matmul(output, softmax_w) + softmax_b
+                self.probs = tf.nn.softmax(self.logits)
+
 
         with tf.variable_scope('ProcessingRNNOutputs'):
             # print("targets")

@@ -31,7 +31,15 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
         # output = tf.reshape(tf.concat(1, output), [-1,self._num_units], name="OutrageousReshapeOutputs")
         # print("output reshaped")
         # print(output)
+
+        # with tf.variable_scope('Seq2Se1'):
+        #     softmax_w = tf.get_variable("softmax_w", [self._num_units, self._softmax_size])
+        #     softmax_b = tf.get_variable("softmax_b", [self._softmax_size])
+        # logits = tf.matmul(output, softmax_w) + softmax_b
+
         logits = tf.nn.rnn_cell._linear([output], self._softmax_size, True, scope="OutrageousSoftmax")
+        # softmax_b = tf.get_variable("softmax_b", [self._softmax_size])
+        # logits = logits + softmax_b
         # print("logits")
         # print(logits)
         probs = tf.nn.softmax(logits)
@@ -44,7 +52,8 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
         #     output = tf.tanh(tf.nn.rnn_cell._linear([inputs,state], self._num_units, True, name="OutrageousLinear"+str(j)))
         #     soft = tf.nn.rnn_cell._linear([output], self._softmax_size, True, name="OutrageousSoftmax")
         # output = tf.Print(output, [maxi], message="maxi")
-    return (logits, probs), output
+    # return (logits, probs), output
+    return output, output
 
 def nextState(inputs,outputs, marker=""):
     output = tf.tanh(tf.nn.rnn_cell._linear(inputs, outputs, True, name="OutrageousLinear"+marker))
