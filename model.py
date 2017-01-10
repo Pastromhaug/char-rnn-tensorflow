@@ -15,47 +15,27 @@ class Model():
             self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name="targets")
             self.drop = tf.placeholder(tf.int32, name="drop")
             self.mask = tf.placeholder(tf.float32, [2*args.rnn_size, args.rnn_size], name="mask")
-            self.step = tf.placeholder(tf.int32, name="outrageous_step")
-            self.epoch = tf.placeholder(tf.int32, name="epoch_num")
+            self.step = tf.placeholder(tf.float32, name="outrageous_step")
+            self.epoch = tf.placeholder(tf.float32, name="epoch_num")
             targets = tf.reshape(self.targets, [-1])
             embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
             inputs = tf.split(1, args.seq_length, tf.nn.embedding_lookup(embedding, self.input_data))
             inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
 
         if args.model == 'out':
-            self.cell = OutrageousRNNCell(args.rnn_size, args.vocab_size, self.targets, self.step, self.epoch)
+            self.cell = OutrageousRNNCell(num_units=args.rnn_size, softmax_size=args.vocab_size,
+                         step=self.step, epoch=self.epoch)
 
         with tf.variable_scope("InitialState"):
             self.initial_state = self.cell.zero_state(args.batch_size, tf.float32)
 
         with tf.variable_scope('Seq2Seq'):
-            softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
-            softmax_b = tf.get_variable("softmax_b", [args.vocab_size])
-        with tf.variable_scope('Seq2Seq'):
-            #-------
-            outputs, _ = seq2seq.rnn_decoder( inputs, self.initial_state,self.cell, scope='CallingSeq2Seq')
-            # logits, probs = zip(*outputs)
-
-            # print("len logits", len(logits))
-            # print('logits[0]')
-            # print(logits[0])
-            # self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="ReshapeLogits")
-            # print("logits")
-            # print(self.logits)
-            # self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="ReshapeProbs")
-            # print("probs")
-            # print(self.probs)
-            #---------
-            output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size], name="ReshapeOutputs")
-            print("output")
-            with tf.variable_scope("ExctactProbabilities"):
-                self.logits = tf.matmul(output, softmax_w) + softmax_b
-                self.probs = tf.nn.softmax(self.logits)
-
+            outputs, _ = tf.nn.rnn(self.cell, inputs, self.initial_state, scope='CallingSeq2Seq')
+            logits, probs = zip(*outputs)
+            self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="ReshapeLogits")
+            self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="ReshapeProbs")
 
         with tf.variable_scope('ProcessingRNNOutputs'):
-            # print("targets")
-            # print(targets)
             with tf.variable_scope("CalculateLoss"):
                 loss = seq2seq.sequence_loss_by_example([self.logits],
                         [targets],
@@ -78,12 +58,19 @@ class Model():
                 self.elm_accuracy = [tf.equal(tf.cast(self.predictions, tf.int32), targets)]
                 self.accuracy = tf.reduce_mean(tf.cast(self.elm_accuracy, tf.float32))
 
+        total = args.batch_size * args.seq_length
+        stats_summaries=[]
+        for i,stat in enumerate(self.cell._stats):
+            print(i)
+            stat = tf.Print(stat, [stat], message="stat"+str(i))
+            # stats_summaries.append(tf.summary.scalar('stats_level_'+str(i), stat/total))
+        # tf.control_dependencies([])
         cost_summary = tf.summary.scalar('train_loss', self.cost)
         test_cost_summary = tf.summary.scalar('test_loss', self.cost)
         acc_summary = tf.summary.scalar('train_acc', self.accuracy)
         test_acc_summary = tf.summary.scalar('test_acc', self.accuracy)
         self.train_summary = tf.summary.merge([cost_summary, acc_summary], name="MergedTrainSummaries")
-        self.test_summary = tf.summary.merge([test_cost_summary, test_acc_summary], name="MergedTestSummaries")
+        self.test_summary = tf.summary.merge([test_cost_summary, test_acc_summary]+stats_summaries, name="MergedTestSummaries")
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
         print("num")
