@@ -32,7 +32,9 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
         probs = tf.nn.softmax(logits)
         maxi = tf.reduce_max(probs, axis=1)
         cutoff = 0.7
-        binary = 1-tf.expand_dims(tf.ceil(maxi - self._cutoff),1)
+        # binary = 1-tf.expand_dims(tf.ceil(maxi - self._cutoff),1)
+        binary = tf.expand_dims(1 - tf.floor(maxi + (1-self._cutoff)),1)
+
 
         i = tf.cast(tf.floor(self._epoch/self._step), tf.int32)
         for j in range(5):
@@ -48,7 +50,7 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
                     log = tf.nn.rnn_cell._linear([out], self._softmax_size, True, scope="OutrageousSoftmax")
                 p = tf.nn.softmax(log)
                 m = tf.reduce_max(p, axis=1)
-                b = tf.expand_dims(tf.ceil(maxi - self._cutoff),1)
+                b = tf.expand_dims(1 - tf.floor(m + (1-self._cutoff)),1)
                 # out = tf.Print(output, [tf.constant(j)], message="f1")
                 return (out, log, p, m, b)
                 # return (out, logits, probs, maxi)
