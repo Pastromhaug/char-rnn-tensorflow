@@ -5,13 +5,14 @@ from tensorflow.python.util import nest
 class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
   """The most basic RNN cell."""
 
-  def __init__(self, num_units, softmax_size,input_size=None, step=tf.constant(5), epoch=None,):
+  def __init__(self, num_units, softmax_size,input_size=None, step=tf.constant(5), epoch=None, cutoff=0.7):
 
     self._num_units = num_units
     self._step = step
     self._epoch = epoch
     self._softmax_size = softmax_size
     self._stats = [tf.constant(0, dtype=tf.float32) for i in range(5)]
+    self._cutoff = cutoff
 
   @property
   def state_size(self):
@@ -22,10 +23,8 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
     return (self._softmax_size, self._softmax_size)
 
   def __call__(self, inputs, state, scope=None):
-    # print("state")
-    # print(state)
     """Most basic RNN: output = new_state = activation(W * input + U * state + B)."""
-    with tf.variable_scope(scope or type(self).__name__):  # "BasicRNNCell"
+    with tf.variable_scope(scope or type(self).__name__):
         output = tf.tanh(tf.nn.rnn_cell._linear([inputs,state], self._num_units, True, scope="OutrageousLinearTranh"))
         output = tf.nn.relu(tf.nn.rnn_cell._linear([output,state], self._num_units, True, scope="OutrageousLinearReLU"))
         with tf.variable_scope("Softmax"):
@@ -33,32 +32,37 @@ class OutrageousRNNCell(tf.nn.rnn_cell.RNNCell):
         probs = tf.nn.softmax(logits)
         maxi = tf.reduce_max(probs, axis=1)
         cutoff = 0.7
+        binary = 1-tf.expand_dims(tf.ceil(maxi - self._cutoff),1)
 
-
-        i = tf.floor(self._epoch/self._step)
+        i = tf.cast(tf.floor(self._epoch/self._step), tf.int32)
         for j in range(5):
-            cond = j < i
+            cond = tf.less(j,i)
+            # cond = tf.Print(cond, [cond], message="cond")
             def f1():
-                binary = tf.expand_dims(tf.ceil(maxi - cutoff),1)
-                new_output = (1-binary)*output
-                self._stats[j] = self._stats[j]+tf.reduce_sum(1-binary)
-                old_output = binary*output
-                new_output = tf.nn.relu(identityLinear([new_output], self._num_units, True, scope="OutrageousLinear"+str(j)))
-                old_logits = binary*logits
+                out1 = binary*output
+                out1 = tf.nn.relu(identityLinear([out1], self._num_units, True, scope="OutrageousLinear"+str(j)))
+                out2 = (1-binary)*output
+                out = out1 + out2
                 with tf.variable_scope("Softmax") as scope:
                     scope.reuse_variables()
-                    new_logits = tf.nn.rnn_cell._linear([new_output], self._softmax_size, True, scope="OutrageousSoftmax")
-                log = old_logits + new_logits
-                out = old_output + new_output
-                # out = tf.Print(out, [tf.constant(j)], message="j")
-                return (out, log)
+                    log = tf.nn.rnn_cell._linear([out], self._softmax_size, True, scope="OutrageousSoftmax")
+                p = tf.nn.softmax(log)
+                m = tf.reduce_max(p, axis=1)
+                b = tf.expand_dims(tf.ceil(maxi - self._cutoff),1)
+                # out = tf.Print(output, [tf.constant(j)], message="f1")
+                return (out, log, p, m, b)
+                # return (out, logits, probs, maxi)
             def f2():
-                (out, log) = (output, logits)
-                return (out, log)
-            (output, logits) = tf.cond(cond, f1, f2)
+                # out = tf.Print(output, [tf.constant(j)], message="f2")
+                return (output, logits, probs, maxi, binary*0)
+            (output, logits, probs, maxi, binary) = tf.cond(cond, f1, f2)
             probs = tf.nn.softmax(logits)
             maxi = tf.reduce_max(probs, axis=1)
+            self._stats[j] = self._stats[j]+tf.reduce_sum(binary)
 
+            # print(output)
+        # print("output")
+        # logits = tf.Print(logits, self._stats, message="stats_out")
     return (logits, probs), output
 
 

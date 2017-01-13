@@ -55,6 +55,8 @@ def main():
                         help="number of packed rotations for DizzyRNNCell")
     parser.add_argument('--step', type=int, default=4,
                         help="only for outrageousRNNCell. number of epochs of training until allowing for next level of transformations")
+    parser.add_argument('--cutoff', type=float, default=0.7,
+                        help="only used for outrageous. level of error at which further layers used")
 
     args = parser.parse_args()
     train(args)
@@ -151,7 +153,6 @@ def train(args):
                     test_batch_num += 1
                     test_loss, test_acc, test_summary_, probs_, elm_accuracy_ = sess.run([model.cost, model.accuracy, model.test_summary, model.probs, model.elm_accuracy], feed)
                     maxs = [np.max(i) for i in probs_]
-                    # print(zip(maxs, elm_accuracy_[0]))
                     summary_writer.add_summary(test_summary_, test_batch_num)
                     end = time.time()
                     print("test loss: {:.3f}, test acc: {:.3f}".format(test_loss, test_acc))

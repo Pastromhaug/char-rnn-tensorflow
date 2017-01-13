@@ -24,13 +24,18 @@ class Model():
 
         if args.model == 'out':
             self.cell = OutrageousRNNCell(num_units=args.rnn_size, softmax_size=args.vocab_size,
-                         step=self.step, epoch=self.epoch)
+                         step=self.step, epoch=self.epoch, cutoff=args.cutoff)
 
         with tf.variable_scope("InitialState"):
             self.initial_state = self.cell.zero_state(args.batch_size, tf.float32)
 
         with tf.variable_scope('Seq2Seq'):
-            outputs, _ = tf.nn.rnn(self.cell, inputs, self.initial_state, scope='CallingSeq2Seq')
+            outputs, final_state = tf.nn.rnn(self.cell, inputs, self.initial_state, scope='CallingSeq2Seq')
+            print("final state")
+            print(final_state)
+            print("stats")
+            stats  = self.cell._stats
+            print(stats)
             logits, probs = zip(*outputs)
             self.logits = tf.reshape(tf.concat(1, logits), [-1,args.vocab_size], name="ReshapeLogits")
             self.probs = tf.reshape(tf.concat(1, probs), [-1,args.vocab_size], name="ReshapeProbs")
@@ -40,8 +45,13 @@ class Model():
                 loss = seq2seq.sequence_loss_by_example([self.logits],
                         [targets],
                         [tf.ones([args.batch_size * args.seq_length])],
-                        args.vocab_size)
-                self.cost = tf.reduce_sum(loss) / args.batch_size / args.seq_length
+                        args.vocab_size, name="CallingSeq2Seq")
+                print("loss")
+                print(loss)
+
+                su = tf.reduce_sum(loss, name="reduce_sum")
+                tot = tf.mul(tf.cast(args.seq_length, tf.float32),tf.cast(args.batch_size, tf.float32), name="_mul")
+                self.cost = tf.truediv(su, tot, name="_div")
 
             with tf.variable_scope("ApplyingGradients"):
                 self.lr = tf.Variable(0.0, trainable=False)
@@ -59,18 +69,25 @@ class Model():
                 self.accuracy = tf.reduce_mean(tf.cast(self.elm_accuracy, tf.float32))
 
         total = args.batch_size * args.seq_length
-        stats_summaries=[]
-        for i,stat in enumerate(self.cell._stats):
-            print(i)
-            stat = tf.Print(stat, [stat], message="stat"+str(i))
-            # stats_summaries.append(tf.summary.scalar('stats_level_'+str(i), stat/total))
-        # tf.control_dependencies([])
+        train_stats_summaries=[]
+        test_stats_summaries=[]
+        for i,stat in enumerate(list(stats)):
+            print(stat)
+            stat = stat/total
+            # stat = tf.Print(stat, [stat], message="stat"+str(i))
+            train_summ = tf.summary.scalar('train_stats_level_'+str(i), stat)
+            train_stats_summaries.append(train_summ)
+            test_summ = tf.summary.scalar('test_stats_level_'+str(i), stat)
+            test_stats_summaries.append(test_summ)
+
         cost_summary = tf.summary.scalar('train_loss', self.cost)
         test_cost_summary = tf.summary.scalar('test_loss', self.cost)
         acc_summary = tf.summary.scalar('train_acc', self.accuracy)
         test_acc_summary = tf.summary.scalar('test_acc', self.accuracy)
-        self.train_summary = tf.summary.merge([cost_summary, acc_summary], name="MergedTrainSummaries")
-        self.test_summary = tf.summary.merge([test_cost_summary, test_acc_summary]+stats_summaries, name="MergedTestSummaries")
+        train_sums = [cost_summary, acc_summary]+train_stats_summaries
+        test_sums = [test_cost_summary, test_acc_summary]+test_stats_summaries
+        self.train_summary = tf.summary.merge(train_sums, name="MergedTrainSummaries")
+        self.test_summary = tf.summary.merge(test_sums, name="MergedTestSummaries")
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
         print("num")
